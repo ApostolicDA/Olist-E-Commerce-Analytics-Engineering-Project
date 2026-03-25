@@ -1,6 +1,6 @@
 # 🛒 Olist E-Commerce Analytics — End-to-End Data Pipeline & Executive Dashboard
 
-![Dashboard](dashboard/olist_dashboard.png)
+![Dashboard](dashboard.png)
 
 > **From 9 raw CSV tables to a validated executive dashboard — full pipeline built with Python, PostgreSQL, and Power BI.**
 
