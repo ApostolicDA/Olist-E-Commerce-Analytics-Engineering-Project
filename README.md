@@ -274,10 +274,10 @@ psql -U your_user -d your_db -f scripts/04_master_dataset/build_star_schema.sql
 
 ## 👤 Author
 
-**[Your Name]**
-📧 [your.email@example.com]
-🔗 [LinkedIn](https://linkedin.com/in/yourprofile)
-🐙 [GitHub](https://github.com/yourusername)
+**[Proud Ndlovu]**
+📧 [fanisaproud@gmail.com]
+🔗 [LinkedIn](https://www.linkedin.com/in/proud-ndlovu-89070854/)
+🐙 [GitHub](https://github.com/ApostolicDA)
 
 ---
 
