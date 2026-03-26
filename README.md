@@ -2,52 +2,135 @@
 
 ![Dashboard](dashboard.png)
 
-> From 9 raw CSV tables to a validated executive dashboard — built with Python, PostgreSQL, and Power BI.
+---
+
+## 💼 Executive Summary
+
+This project simulates the full analytics workflow of a mid-level Data/BI Analyst embedded in an e-commerce business — from raw, messy data to a boardroom-ready dashboard with every metric independently validated.
+
+**The business problem:** Olist, a Brazilian e-commerce platform, operates across 9 data systems with no unified view of revenue, customers, or delivery performance. This project builds that unified view — answering the questions an executive team actually asks.
+
+| Business Question | Answer |
+|---|---|
+| Which product categories drive the most revenue? | Home & Living (R$ 3.33M) and Electronics (R$ 2.65M) lead |
+| How do customers prefer to pay? | Credit card accounts for ~70% of all revenue (~R$ 15.4M) |
+| Does product presentation affect sales? | Yes — products with longer, more detailed names generate the highest revenue |
+| How reliable is our delivery? | Delivery performance is measurably linked to review scores |
+| Can we trust our dashboard numbers? | Yes — all 8 KPIs independently validated via SQL (8/8 passed) |
 
 ---
 
-## 📌 Project Overview
+## 🛠️ Technical Skills Demonstrated
 
-This project delivers a full end-to-end analytics pipeline on the Brazilian Olist E-Commerce dataset — one of the most complex public datasets available, with 9 relational tables covering orders, customers, products, sellers, payments, reviews, and geolocation (~100K orders, 2016–2018).
-
-**Business questions answered:**
-- Where is revenue coming from — by category, payment method, and over time?
-- How does shipping cost compare to total product value?
-- What is the relationship between product name length and revenue?
-- How does delivery performance affect customer review scores?
-- Are our dashboard KPIs accurate and trustworthy?
-
-> **Note on profit:** Cost-of-goods data is not available in this dataset. Revenue (price + freight) is used as the primary financial metric throughout. This is clearly reflected in all KPIs and visuals.
+| Skill | Where Applied |
+|---|---|
+| **Python / pandas** | Data cleaning across 9 relational tables — nulls, duplicates, typos, encoding |
+| **PostgreSQL** | Star schema design, CTEs, LEFT JOIN logic, aggregations |
+| **Data Modelling** | Master fact table at order-item grain from 9 source tables |
+| **Feature Engineering** | Bucketing, delivery KPIs, geolocation deduplication |
+| **Power BI** | Executive dashboard — KPI cards, bar charts, treemap, time-series |
+| **KPI Validation** | SQL cross-verification of every dashboard metric — 8/8 passed |
 
 ---
 
 ## 🏗️ Pipeline Architecture
 
 ```
-Raw CSVs (9 tables)
+Raw CSVs (9 tables, ~100K orders)
         │
         ▼
-🐍 Python — Data Cleaning (Jupyter Notebook)
-  └── 1 notebook cleaning all 9 tables independently using pandas
+🐍 Python — Data Cleaning
+  └── Jupyter notebook cleaning all 9 tables independently
+      Handles: nulls, duplicates, city name typos, category
+      standardisation, Portuguese encoding fixes
         │
         ▼
-🐘 PostgreSQL — Master Dataset + Feature Engineering
-  └── 1 SQL script:
-      ├── Category dimension cleaning & grouping
-      ├── Geolocation deduplication
-      ├── Star schema master fact table (LEFT JOINs across all 9 tables)
-      ├── Feature engineering (name buckets, delivery flags, photo buckets)
-      └── Analytics view & aggregation queries
+🐘 PostgreSQL — Modelling & Feature Engineering
+  └── Single SQL script covering:
+      ├── Category dimension: 40+ raw names → 11 business groups
+      ├── Geolocation deduplication (1 row per ZIP prefix)
+      ├── Master fact table — star schema via LEFT JOINs (9 tables)
+      ├── Feature engineering — name length buckets, photo buckets,
+      │   delivery days, delay flags
+      └── olist_analytics view — clean layer for Power BI
         │
         ▼
 📊 Power BI — Executive Dashboard
-  └── Connected directly to PostgreSQL master dataset (olist_analytics view)
+  └── Connected live to PostgreSQL via olist_analytics view
         │
         ▼
-✅ KPI Validation Report
-  └── All 8 dashboard metrics independently re-calculated in SQL
+✅ KPI Validation
+  └── Every dashboard metric re-calculated in SQL
       and matched against Power BI — 8/8 checks passed
 ```
+
+---
+
+## 📊 Dashboard & Key Business Findings
+
+![Dashboard](dashboard.png)
+
+### KPI Summary
+
+| Metric | Value |
+|---|---|
+| 👥 Total Customers | 122.35K |
+| 💰 Total Revenue | R$ 22.14M |
+| 🚚 Total Shipping Cost | R$ 2.43M |
+| 🎁 Total Product Value | R$ 17.12M |
+
+### Business Insights
+
+**💳 Payment behaviour is heavily concentrated**
+Credit card accounts for ~R$ 15.4M (~70%) of all revenue. Boleto (R$ 2.9M), voucher (R$ 0.4M), and debit card (R$ 0.2M) are significantly smaller. This has direct implications for checkout optimisation and payment partner strategy.
+
+**🏠 Home & Living and Electronics dominate revenue**
+The top two categories together account for over 27% of total revenue. These are the highest-priority categories for inventory investment, marketing spend, and seller acquisition efforts.
+
+**📝 Product detail drives revenue**
+Products with the longest, most descriptive names (56+ characters) generate the highest revenue — a strong signal that listing quality directly impacts sales. Actionable for seller onboarding and content guidelines.
+
+**📦 Delivery performance affects customer satisfaction**
+SQL analysis confirms a clear relationship between delivery delay and review score. Reducing `delay_days` is a measurable lever for improving customer experience at scale.
+
+**📅 Revenue is seasonal**
+Clear peaks in the time-series align with Brazilian retail calendar events — supporting demand forecasting and campaign planning decisions.
+
+---
+
+## 🗂️ Data Model
+
+**Grain:** 1 row = 1 order item
+
+```
+                    ┌──────────────────────┐
+                    │     master_olist      │  ← Fact table
+                    │──────────────────────│
+                    │ order_id             │
+                    │ customer_id          │
+                    │ product_id           │
+                    │ seller_id            │
+                    │ item_price           │
+                    │ freight_cost         │
+                    │ payment_type         │
+                    │ review_score         │
+                    │ delivery_days        │
+                    │ delay_days           │
+                    │ name_length_bucket   │
+                    │ photos_qty_bucket    │
+                    │ clean_category       │
+                    └──────────────────────┘
+                      │         │        │
+           ┌──────────┘    ┌────┘   ┌────┘
+           ▼               ▼        ▼
+     Customers         Products   Payments
+     Geolocation       Category   Reviews
+```
+
+**Key design decisions:**
+- LEFT JOINs on all dimension tables — no orders lost due to missing dimension data
+- Payment and review tables pre-aggregated via CTEs before joining — prevents row fan-out
+- Geolocation deduplicated to 1 row per ZIP prefix before joining — prevents lat/lng fan-out
 
 ---
 
@@ -56,16 +139,11 @@ Raw CSVs (9 tables)
 ```
 olist-ecommerce-analytics/
 │
-├── datasets/                              # Raw CSV source files (see Data Source below)
+├── data/
+│   └── Olist_complete_script.sql          # Full PostgreSQL pipeline (5 stages)
 │
-├── olist_df1-7.ipynb                      # Python cleaning notebook (all 9 tables)
-│
-├── Olist_complete_script.sql              # Full PostgreSQL script:
-│                                          #   - Category cleaning
-│                                          #   - Geolocation deduplication
-│                                          #   - Master fact table (star schema)
-│                                          #   - Feature engineering
-│                                          #   - Analytics view for Power BI
+├── python_data_cleaning_script/
+│   └── Python_Cleaning_Script.ipynb       # Pandas cleaning for all 9 tables
 │
 ├── Olist_KPI_Validation_Report.docx       # 8/8 KPI checks — SQL vs Power BI
 ├── olist_dashboard.pbix                   # Power BI dashboard file
@@ -75,158 +153,9 @@ olist-ecommerce-analytics/
 
 ---
 
-## 🔧 Tech Stack
+## ✅ KPI Validation — 8/8 Passed
 
-| Layer | Tool |
-|---|---|
-| Data Cleaning | Python (pandas) — Jupyter Notebook |
-| Database | PostgreSQL |
-| Data Modelling | Star schema — master fact table via LEFT JOINs |
-| Feature Engineering | SQL (PostgreSQL) |
-| Visualisation | Microsoft Power BI |
-| Validation | SQL queries cross-checked against Power BI KPIs |
-
----
-
-## 🗂️ The 9 Source Tables
-
-| Table | Description |
-|---|---|
-| `olist_sellers_dataset.csv` | Seller IDs, cities, and states |
-| `product_category_name_translation.csv` | Portuguese to English category names |
-| `olist_products_dataset.csv` | Product dimensions, photos, name lengths |
-| `olist_order_reviews_dataset.csv` | Customer review scores and comments |
-| `olist_orders_dataset.csv` | Order lifecycle — purchase, approval, delivery dates |
-| `olist_order_payments_dataset.csv` | Payment type and value per order |
-| `olist_order_items_dataset.csv` | Item-level price, freight, seller, product |
-| `olist_geolocation_dataset.csv` | ZIP code prefix lat/lng mapping |
-| `olist_customers_dataset.csv` | Customer IDs, cities, states, ZIP codes |
-
----
-
-## 🧹 Stage 1 — Data Cleaning (Python)
-
-All 9 raw CSV tables were cleaned individually in a single Jupyter notebook before being loaded into PostgreSQL.
-
-Key cleaning steps applied per table:
-- Null value handling and imputation
-- Data type casting (dates, numerics, strings)
-- Duplicate detection and removal
-- City name typo correction and encoding fixes across sellers, customers, and geolocation (Portuguese text with many inconsistencies)
-- Category name deduplication and merging (e.g. `eletrodomesticos_2` → `eletrodomesticos`, furniture subcategories merged)
-- English category typo corrections (e.g. `fashio_female_clothing` → `fashion_female_clothing`)
-- Outlier flagging on price and freight columns
-
-📁 Script: `olist_df1-7.ipynb`
-
----
-
-## 🐘 Stage 2 — PostgreSQL: Master Dataset & Feature Engineering
-
-The entire PostgreSQL stage is handled in a single SQL script with 5 logical sections.
-
-### Section 1 — Category Dimension Cleaning
-40+ raw English category names were grouped into 11 clean business categories:
-
-| Clean Category | Raw Categories Included |
-|---|---|
-| Fashion | fashion_childrens_clothes, fashion_shoes, fashion_sport, + 4 more |
-| Electronics | electronics, computers_accessories, audio, telephony, + 4 more |
-| Home & Living | furniture, bed_bath_table, home_comfort, home_appliances, + 2 more |
-| Kids & Baby | baby, diapers_and_hygiene, toys |
-| Beauty & Health | health_beauty, perfumery |
-| Sports & Leisure | sports_leisure |
-| Books | books_technical, books_general_interest, books_imported |
-| Food & Kitchen | food_drink, la_cuisine |
-| Tools & Garden | construction_tools, garden_tools |
-| Pet Supplies | pet_shop |
-| General & Misc | everything else |
-
-### Section 2 — Geolocation Deduplication
-The raw geolocation table contains multiple lat/lng entries per ZIP prefix. A clean `geo_clean` table was built by averaging coordinates per ZIP prefix — preventing fan-out joins and ensuring 1 row per ZIP code.
-
-### Section 3 — Master Fact Table (Star Schema)
-A single master fact table (`master_olist`) was built at the grain of **1 row = 1 order item**, joining all 9 tables:
-
-- **INNER JOIN** on `order_items` — every row must have an order and an item
-- **LEFT JOINs** on all dimension tables — preserves all order items even where dimension data is incomplete
-
-```sql
--- Grain: 1 row = 1 order item
-CREATE TABLE master_olist AS
-WITH payment_agg AS (
-    SELECT order_id, SUM(payment_value) AS order_payment_value,
-           MAX(payment_type) AS payment_type
-    FROM order_payment GROUP BY order_id
-),
-review_agg AS (
-    SELECT order_id, AVG(review_score) AS review_score
-    FROM reviews GROUP BY order_id
-)
-SELECT
-    o.order_id, o.customer_id, o.order_status,
-    c.customer_state, c.customer_city,
-    i.product_id, i.seller_id, i.price AS item_price, i.freight_value AS freight_cost,
-    p.product_name_length, p.product_photos_qty, cat.clean_category,
-    pay.payment_type, rev.review_score,
-    (o.order_delivered_customer_date - o.order_purchase_timestamp) AS delivery_days,
-    (o.order_delivered_customer_date - o.order_estimated_delivery_date) AS delay_days
-FROM orders o
-JOIN order_items i ON o.order_id = i.order_id
-LEFT JOIN customers c ON o.customer_id = c.customer_id
-LEFT JOIN geo_clean geo_cust ON LPAD(c.customer_zip_code_prefix::text,5,'0') = geo_cust.zip_prefix
-JOIN products p ON i.product_id = p.product_id
-LEFT JOIN category cat ON p.product_category_name = cat.product_category_name
-LEFT JOIN payment_agg pay ON o.order_id = pay.order_id
-LEFT JOIN review_agg rev ON o.order_id = rev.order_id;
-```
-
-### Section 4 — Feature Engineering
-Two bucketed columns were added directly to the master table:
-
-| Feature | Buckets |
-|---|---|
-| `name_length_bucket` | Very Short (0–10) / Short (11–20) / Medium (21–40) / Long (41–55) / Very Long (56+) |
-| `photos_qty_bucket` | No Photos / 1 Photo / 2–3 Photos / 4–6 Photos / 7+ Photos |
-
-Delivery features derived during the join:
-- `delivery_days` — actual days from purchase to delivery
-- `delay_days` — difference between actual and estimated delivery (positive = late)
-
-### Section 5 — Power BI Analytics View
-A final `olist_analytics` view was created as the clean connection layer for Power BI. Additional aggregation queries were built alongside it to validate all dashboard visuals directly in SQL.
-
-📁 Script: `Olist_complete_script.sql`
-
----
-
-## 📊 Stage 3 — Power BI Executive Dashboard
-
-The `olist_analytics` view was connected directly to Power BI via the PostgreSQL connector.
-
-### Dashboard KPIs
-
-| Metric | Value |
-|---|---|
-| 👥 Total Customers | 122.35K |
-| 💰 Total Revenue | R$ 22.14M |
-| 🚚 Total Shipping Cost | R$ 2.43M |
-| 🎁 Total Product Value | R$ 17.12M |
-
-### Visuals & Key Findings
-
-| Visual | Key Finding |
-|---|---|
-| Bar Chart — Revenue by Product Name Length | Longer product names (56+ chars) drive the highest revenue — likely reflecting more detailed, premium product listings |
-| Bar Chart — Revenue by Payment Method | Credit card dominates at ~R$ 15.4M (~70% of total revenue); boleto is a distant second at ~R$ 2.9M |
-| Line Chart — Revenue Trend Over Time | Clear seasonality with notable peaks — consistent with Brazilian retail calendar events |
-| Treemap — Revenue by Category | Home & Living leads at R$ 3.33M, followed by Electronics at R$ 2.65M |
-
----
-
-## ✅ Stage 4 — KPI Validation Report
-
-Every dashboard metric was independently re-calculated in PostgreSQL and matched against Power BI. **All 8 checks passed.**
+Every metric on the dashboard was independently re-calculated in PostgreSQL and matched against Power BI. This is what separates a trustworthy dashboard from one that just looks good.
 
 | KPI | SQL Result | Power BI | Status |
 |---|---|---|---|
@@ -239,49 +168,35 @@ Every dashboard metric was independently re-calculated in PostgreSQL and matched
 | Revenue by Category | Top 6 verified | Treemap match | ✅ PASS |
 | Revenue Trend Over Time | Monthly series | Line chart match | ✅ PASS |
 
-> Cross-check: Total Revenue (22.14M) = Product Value (17.12M) + Shipping Cost (2.43M) + other fees ✅
+> Cross-check: Revenue (22.14M) = Product Value (17.12M) + Shipping (2.43M) + other fees ✅
 
-📁 Full report: `Olist_KPI_Validation_Report.docx`
+📁 Full methodology: `Olist_KPI_Validation_Report.docx`
 
 ---
 
 ## 🚀 How to Reproduce
 
-### Prerequisites
-- Python 3.9+ with Jupyter
-- PostgreSQL 14+
-- Power BI Desktop
-- Libraries: `pandas`, `numpy`, `psycopg2`, `sqlalchemy`
-
-### Steps
+**Prerequisites:** Python 3.9+, PostgreSQL 14+, Power BI Desktop
+**Libraries:** `pandas`, `numpy`, `psycopg2`, `sqlalchemy`, `jupyter`
 
 ```bash
 # 1. Clone the repo
 git clone https://github.com/ApostolicDA/Olist-E-Commerce-Analytics-Engineering-Project.git
-cd Olist-E-Commerce-Analytics-Engineering-Project
 
-# 2. Install Python dependencies
+# 2. Install dependencies
 pip install pandas numpy psycopg2-binary sqlalchemy jupyter
 
-# 3. Download the raw dataset
+# 3. Get the raw data
 # https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
-# Place all 9 CSVs into the /datasets folder
+# (9 CSV files — ~100K orders, 2016–2018)
 
-# 4. Run the cleaning notebook
-jupyter notebook olist_df1-7.ipynb
-# Execute all cells — exports cleaned CSVs ready for PostgreSQL
+# 4. Clean the data
+jupyter notebook python_data_cleaning_script/Python_Cleaning_Script.ipynb
 
-# 5. Load cleaned CSVs into PostgreSQL
-# Create your database and load the 9 cleaned tables
+# 5. Run the full SQL pipeline
+psql -U your_user -d your_database -f data/Olist_complete_script.sql
 
-# 6. Run the full SQL pipeline
-psql -U your_user -d your_database -f Olist_complete_script.sql
-# Runs all 5 stages: category cleaning → geolocation deduplication →
-# master fact table → feature engineering → analytics view
-
-# 7. Connect Power BI
-# Open Power BI Desktop → Connect to PostgreSQL → select olist_analytics view
-# Open olist_dashboard.pbix
+# 6. Open Power BI → connect to PostgreSQL → select olist_analytics view
 ```
 
 ---
@@ -291,13 +206,13 @@ psql -U your_user -d your_database -f Olist_complete_script.sql
 **Brazilian E-Commerce Public Dataset by Olist**
 🔗 https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
 
-~100K orders from 2016–2018 across multiple Brazilian marketplaces. 9 relational tables.
+~100K orders · 9 relational tables · 2016–2018 · Multiple Brazilian marketplaces
 
 ---
 
 ## 👤 Author
 
-**Proud Ndlovu**
+**Proud Ndlovu** — Data & BI Analyst
 📧 fanisaproud@gmail.com
 🔗 [LinkedIn](https://www.linkedin.com/in/proud-ndlovu)
 🐙 [GitHub](https://github.com/ApostolicDA)
@@ -306,4 +221,4 @@ psql -U your_user -d your_database -f Olist_complete_script.sql
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+MIT License
